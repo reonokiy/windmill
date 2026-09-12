@@ -2,4 +2,5 @@ summary: Shared TypeScript modules
 display_name: Shared libraries
 owners:
   - u/reonokiy
-extra_perms: {}
+extra_perms:
+  u/reonokiy: true
