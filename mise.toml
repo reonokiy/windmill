@@ -1,29 +1,23 @@
 [tools]
-node = "26.8.1"
 bun = "1.4.2"
-"npm:windmill-cli" = "1.810.0"
 actionlint = "1.7.12"
 shellcheck = "0.11.0"
 
 [tasks.install]
 description = "Install locked project dependencies"
-run = "npm ci"
+run = "bun install --frozen-lockfile"
 
 [tasks.check]
 description = "Type-check shared modules and local scripts"
-run = "npm run check"
+run = "bun run check"
 
 [tasks.test]
 description = "Run offline S3 integration tests"
-run = "npm test"
-
-[tasks."test:bun"]
-description = "Run the same tests in the Windmill runtime"
 run = "bun test"
 
 [tasks.verify]
-description = "Run type checks and tests in Node and Bun"
-depends = ["check", "test", "test:bun", "lint:ci"]
+description = "Run Bun type checks, tests, and workflow linting"
+depends = ["check", "test", "lint:ci"]
 
 [tasks."lint:ci"]
 description = "Validate GitHub Actions workflows"
@@ -39,12 +33,12 @@ run = "bun --inspect-wait run scripts/b2-local.ts"
 
 [tasks."wmill:pull"]
 description = "Pull from the currently selected Windmill workspace"
-run = "wmill sync pull"
+run = "bun run --bun wmill sync pull"
 
 [tasks."wmill:push"]
 description = "Preview and push to the currently selected Windmill workspace"
-run = "wmill sync push --auto-metadata --keep-deleted"
+run = "bun run --bun wmill sync push --auto-metadata --keep-deleted"
 
 [tasks."wmill:test"]
 description = "Run the B2 roundtrip test on the Windmill worker"
-run = "wmill script run f/storage-test/roundtrip --data '{}'"
+run = "bun run --bun wmill script run f/storage-test/roundtrip --data '{}'"

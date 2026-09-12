@@ -41,6 +41,7 @@ jobs:
       - uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db # v3
         with:
           version: 2026.9.5
+      - run: mise run install
       - name: Check deployment credential
         env:
           WM_TOKEN: ${{ secrets.WMILL_TOKEN }}
@@ -52,8 +53,8 @@ jobs:
       - name: Generate metadata and sync scripts
         env:
           WM_TOKEN: ${{ secrets.WMILL_TOKEN }}
-        run: mise exec -- wmill sync push --yes --auto-metadata --keep-deleted
+        run: mise exec -- bun run --bun wmill sync push --yes --auto-metadata --keep-deleted
       - name: Test B2 on the Windmill worker
         env:
           WM_TOKEN: ${{ secrets.WMILL_TOKEN }}
-        run: mise exec -- wmill script run f/storage-test/roundtrip --data '{}'
+        run: mise exec -- bun run --bun wmill script run f/storage-test/roundtrip --data '{}'

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { once } from "node:events";
-import { test } from "node:test";
+import { test } from "bun:test";
 import { createB2 } from "../f/lib/b2.ts";
 import { createAppStorage } from "../f/lib/app_storage.ts";
 import { testStorage } from "../f/storage-test/roundtrip.ts";
@@ -39,7 +39,7 @@ test("B2 round trips, content types, exact keys, and S3 errors", async () => {
   try {
     const key = "reports/中文 +%.txt";
     const result = await b2.writeText(key, "你好 🌍");
-    assert.equal(result.etag, '"test-etag"');
+    assert.equal(result, Buffer.byteLength("你好 🌍"));
     assert.equal(await b2.readText(key), "你好 🌍");
     assert.equal(objects.get(`/test-bucket/${key}`)?.type, "text/plain; charset=utf-8");
     await b2.writeJson("data.json", { count: 0, values: [false, null, "你好"] });
@@ -54,47 +54,41 @@ test("B2 round trips, content types, exact keys, and S3 errors", async () => {
     assert.throws(() => b2.writeJson("bad.json", undefined), TypeError);
     await assert.rejects(b2.readText(""), /must not be empty/);
     await b2.delete(key);
-    await assert.rejects(b2.readText(key), { name: "NoSuchKey" });
-    await assert.rejects(b2.readText("denied"), { name: "AccessDenied" });
+    await assert.rejects(b2.readText(key), { code: "NoSuchKey" });
+    await assert.rejects(b2.readText("denied"), { code: "AccessDenied" });
 
     const config = { bucket: "test-bucket", endPoint: `http://127.0.0.1:${address.port}`, region: "test" };
     const first = createAppStorage("daily-report", config);
     const second = createAppStorage("feed-sync", config);
-    try {
-      const smoke = await testStorage(first);
-      assert.equal(smoke.ok, true);
-      assert.equal(smoke.cleanedUp, true);
-      assert.equal([...objects.keys()].filter(key => key.startsWith("/test-bucket/apps/daily-report/tmp/")).length, 0);
-      const cleanupPaths: string[] = [];
-      await assert.rejects(testStorage({
-        ...first,
-        writeText: async () => { throw new Error("Simulated upload failure"); },
-        delete: async path => { cleanupPaths.push(path); },
-      }), AggregateError);
-      assert.equal(cleanupPaths.length, 3);
-      await first.writeJson("data/state.json", { app: "first" });
-      await second.writeJson("data/state.json", { app: "second" });
-      assert.equal(first.key("data/state.json"), "apps/daily-report/data/state.json");
-      assert.ok(objects.has("/test-bucket/apps/daily-report/data/state.json"));
-      assert.deepEqual(await first.readJson("data/state.json"), { app: "first" });
-      assert.deepEqual(await second.readJson("data/state.json"), { app: "second" });
-      await first.delete("data/state.json");
-      await assert.rejects(first.readJson("data/state.json"), { name: "NoSuchKey" });
-      assert.deepEqual(await second.readJson("data/state.json"), { app: "second" });
-      for (const path of ["", "/other/file", "../other/file", "a/../file", "./file", "a//file", "a/", "a\\file", "a\u0000file"]) {
-        assert.throws(() => first.writeText(path, "bad"), /must be relative/);
-        assert.throws(() => first.readText(path), /must be relative/);
-        assert.throws(() => first.delete(path), /must be relative/);
-      }
-      for (const app of ["", "lib", "../other", "MyApp", "app_name", "app--name"]) {
-        assert.throws(() => createAppStorage(app, config), /App ID/);
-      }
-    } finally {
-      first.destroy();
-      second.destroy();
+    const smoke = await testStorage(first);
+    assert.equal(smoke.ok, true);
+    assert.equal(smoke.cleanedUp, true);
+    assert.equal([...objects.keys()].filter(key => key.startsWith("/test-bucket/apps/daily-report/tmp/")).length, 0);
+    const cleanupPaths: string[] = [];
+    await assert.rejects(testStorage({
+      ...first,
+      writeText: async () => { throw new Error("Simulated upload failure"); },
+      delete: async path => { cleanupPaths.push(path); },
+    }), AggregateError);
+    assert.equal(cleanupPaths.length, 3);
+    await first.writeJson("data/state.json", { app: "first" });
+    await second.writeJson("data/state.json", { app: "second" });
+    assert.equal(first.key("data/state.json"), "apps/daily-report/data/state.json");
+    assert.ok(objects.has("/test-bucket/apps/daily-report/data/state.json"));
+    assert.deepEqual(await first.readJson("data/state.json"), { app: "first" });
+    assert.deepEqual(await second.readJson("data/state.json"), { app: "second" });
+    await first.delete("data/state.json");
+    await assert.rejects(first.readJson("data/state.json"), { code: "NoSuchKey" });
+    assert.deepEqual(await second.readJson("data/state.json"), { app: "second" });
+    for (const path of ["", "/other/file", "../other/file", "a/../file", "./file", "a//file", "a/", "a\\file", "a\u0000file"]) {
+      assert.throws(() => first.writeText(path, "bad"), /must be relative/);
+      assert.throws(() => first.readText(path), /must be relative/);
+      assert.throws(() => first.delete(path), /must be relative/);
+    }
+    for (const app of ["", "lib", "../other", "MyApp", "app_name", "app--name"]) {
+      assert.throws(() => createAppStorage(app, config), /App ID/);
     }
   } finally {
-    b2.destroy();
     await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
     if (previous.key === undefined) delete process.env.AWS_ACCESS_KEY_ID;
     else process.env.AWS_ACCESS_KEY_ID = previous.key;

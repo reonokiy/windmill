@@ -1,9 +1,4 @@
-import {
-  S3Client,
-  GetObjectCommand,
-  PutObjectCommand,
-  DeleteObjectCommand,
-} from "@aws-sdk/client-s3";
+import { S3Client } from "bun";
 
 /** Connection fields from the Windmill S3 resource; credentials stay in the worker. */
 export interface B2Config {
@@ -17,12 +12,11 @@ export interface B2Config {
 
 export interface WriteOptions {
   contentType?: string;
-  metadata?: Record<string, string>;
 }
 
 export const DEFAULT_B2_RESOURCE = "u/reonokiy/b2";
 
-/** Creates an independent client. Call destroy() when finished. */
+/** Creates a Bun-native S3 client for the configured B2 bucket. */
 export function createB2(config: B2Config) {
   for (const field of ["bucket", "endPoint", "region"] as const) {
     if (typeof config[field] !== "string" || !config[field].trim()) {
@@ -39,38 +33,30 @@ export function createB2(config: B2Config) {
   }
   if (config.port !== undefined) endpoint.port = String(config.port);
 
+  const virtualHostedStyle = config.pathStyle === false;
+  if (virtualHostedStyle) endpoint.hostname = `${config.bucket}.${endpoint.hostname}`;
   const client = new S3Client({
     endpoint: endpoint.toString(),
+    bucket: config.bucket,
     region: config.region,
-    forcePathStyle: config.pathStyle ?? true,
-    // AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY are passed through by the worker.
-    requestChecksumCalculation: "WHEN_REQUIRED",
-    responseChecksumValidation: "WHEN_REQUIRED",
+    virtualHostedStyle,
+    // Read the worker's credentials explicitly, also supporting local .env.
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+    sessionToken: process.env.AWS_SESSION_TOKEN,
   });
 
-  function object(key: string) {
+  function file(key: string) {
     if (typeof key !== "string" || key.length === 0) {
       throw new Error("B2 object key must not be empty");
     }
-    // Preserve keys exactly: leading slashes, spaces and Unicode are valid in S3.
-    return { Bucket: config.bucket, Key: key };
+    return client.file(key);
   }
 
-  async function read(key: string) {
-    const result = await client.send(new GetObjectCommand(object(key)));
-    if (!result.Body) throw new Error("B2 returned no response body");
-    return result.Body;
-  }
-
-  async function write(key: string, body: string | Uint8Array, options: WriteOptions = {}) {
-    const result = await client.send(new PutObjectCommand({
-      ...object(key),
-      Body: body,
-      ContentLength: typeof body === "string" ? new TextEncoder().encode(body).byteLength : body.byteLength,
-      ContentType: options.contentType ?? "application/octet-stream",
-      Metadata: options.metadata,
-    }));
-    return { key, bucket: config.bucket, etag: result.ETag, versionId: result.VersionId };
+  function write(key: string, body: string | Uint8Array, options: WriteOptions = {}) {
+    return file(key).write(body, {
+      type: options.contentType ?? "application/octet-stream",
+    });
   }
 
   return {
@@ -84,19 +70,16 @@ export function createB2(config: B2Config) {
       return write(key, text, { contentType: "application/json; charset=utf-8", ...options });
     },
     async readBytes(key: string): Promise<Uint8Array> {
-      return (await read(key)).transformToByteArray();
+      return file(key).bytes();
     },
     async readText(key: string): Promise<string> {
-      return (await read(key)).transformToString("utf-8");
+      return file(key).text();
     },
     async readJson<T = unknown>(key: string): Promise<T> {
-      return JSON.parse(await (await read(key)).transformToString("utf-8")) as T;
+      return file(key).json() as Promise<T>;
     },
     async delete(key: string): Promise<void> {
-      await client.send(new DeleteObjectCommand(object(key)));
-    },
-    destroy() {
-      client.destroy();
+      await file(key).delete();
     },
   };
 }
@@ -111,12 +94,7 @@ export async function getB2(resourcePath = DEFAULT_B2_RESOURCE): Promise<B2> {
   return createB2(config);
 }
 
-/** Recommended for jobs: always closes the client, including when the callback fails. */
+/** Uses the configured bucket for a job callback. */
 export async function withB2<T>(run: (b2: B2) => Promise<T>, resourcePath = DEFAULT_B2_RESOURCE): Promise<T> {
-  const b2 = await getB2(resourcePath);
-  try {
-    return await run(b2);
-  } finally {
-    b2.destroy();
-  }
+  return run(await getB2(resourcePath));
 }

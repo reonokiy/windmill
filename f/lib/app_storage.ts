@@ -33,14 +33,14 @@ function scopedStorage(b2: B2, prefix: string) {
 
 export type AppStorage = ReturnType<typeof scopedStorage>;
 
-/** Local/server use. Caller owns this client and must destroy it when finished. */
+/** Local Bun use with explicit connection settings. */
 export function createAppStorage(app: string, config: B2Config) {
   const prefix = appPrefix(app);
   const b2 = createB2(config);
-  return { ...scopedStorage(b2, prefix), destroy: () => b2.destroy() };
+  return scopedStorage(b2, prefix);
 }
 
-/** Windmill jobs use the fixed apps/<app>/ prefix and close connections automatically. */
+/** Windmill jobs use the fixed apps/<app>/ prefix using Bun S3. */
 export async function withAppStorage<T>(
   app: string,
   run: (storage: AppStorage) => Promise<T>,

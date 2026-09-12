@@ -30,7 +30,7 @@ export async function testStorage(storage: AppStorage) {
     try {
       await storage.readBytes(path);
     } catch (error) {
-      if (error instanceof Error && error.name === "NoSuchKey") continue;
+      if (error instanceof Error && "code" in error && error.code === "NoSuchKey") continue;
       throw error;
     }
     throw new Error("Deleted test object is still readable");
