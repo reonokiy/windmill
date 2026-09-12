@@ -1,0 +1,27 @@
+# Local environment and credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+kubeconfig
+talosconfig
+
+# Dependencies and generated caches
+node_modules/
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Editor and OS files
+.idea/
+.DS_Store
+*.swp
+*.swo
+
+# Logs
+*.log

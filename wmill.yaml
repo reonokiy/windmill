@@ -1,0 +1,12 @@
+# Windmill workspace code sync. Instance authentication is configured locally.
+defaultTs: bun
+includes:
+  - f/**
+excludes:
+  - '**/.gitkeep'
+skipVariables: true
+skipResources: true
+skipResourceTypes: true
+skipSecrets: true
+includeSchedules: false
+includeTriggers: false
