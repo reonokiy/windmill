@@ -1,0 +1,59 @@
+name: Windmill
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db # v3
+        with:
+          version: 2026.9.5
+      - run: mise run install
+      - run: mise run verify
+
+  deploy:
+    needs: verify
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    concurrency:
+      group: windmill-production
+      cancel-in-progress: false
+    env:
+      BASE_INTERNAL_URL: https://windmill.nokiy.net
+      WM_WORKSPACE: windmill
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db # v3
+        with:
+          version: 2026.9.5
+      - name: Check deployment credential
+        env:
+          WM_TOKEN: ${{ secrets.WMILL_TOKEN }}
+        run: |
+          if [ -z "$WM_TOKEN" ]; then
+            echo '::error::Add the WMILL_TOKEN repository Actions secret, then rerun this workflow.'
+            exit 1
+          fi
+      - name: Generate metadata and sync scripts
+        env:
+          WM_TOKEN: ${{ secrets.WMILL_TOKEN }}
+        run: mise exec -- wmill sync push --yes --auto-metadata --keep-deleted
+      - name: Test B2 on the Windmill worker
+        env:
+          WM_TOKEN: ${{ secrets.WMILL_TOKEN }}
+        run: mise exec -- wmill script run f/storage-test/roundtrip --data '{}'

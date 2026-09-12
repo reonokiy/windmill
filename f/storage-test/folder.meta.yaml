@@ -1,0 +1,5 @@
+summary: B2 storage integration tests
+display_name: Storage test
+owners:
+  - u/reonokiy
+extra_perms: {}

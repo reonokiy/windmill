@@ -25,3 +25,7 @@ __pycache__/
 
 # Logs
 *.log
+
+# Machine-specific mise overrides
+mise.local.toml
+.mise.local.toml
