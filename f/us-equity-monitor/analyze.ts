@@ -1,5 +1,6 @@
-// @ts-ignore Windmill resolves this pinned transitive dependency for Bun.
-import type { Mistral } from "@mistralai/mistralai@2.2.0";
+import { trace } from "@opentelemetry/api";
+// Keep pi-ai's optional Mistral-provider peer in Windmill's script lock.
+void trace;
 import { Agent, type AgentTool, type StreamFn } from "@mariozechner/pi-agent-core";
 import { streamSimple, type Api, type Model } from "@mariozechner/pi-ai";
 import { createMonitorSecrets, type MonitorSecrets } from "./secrets.ts";
