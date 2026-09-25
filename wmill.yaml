@@ -8,5 +8,5 @@ skipVariables: true
 skipResources: true
 skipResourceTypes: true
 skipSecrets: true
-includeSchedules: false
+includeSchedules: true
 includeTriggers: false

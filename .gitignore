@@ -4,6 +4,10 @@
 !.env.example
 *.pem
 *.key
+auth.json
+.pi-auth.json
+.pi-auth.json.*.tmp
+fnox.local.toml
 kubeconfig
 talosconfig
 
@@ -29,3 +33,9 @@ __pycache__/
 # Machine-specific mise overrides
 mise.local.toml
 .mise.local.toml
+
+# Local blob backend
+.local/blobs/
+
+# Atomic local secret writes
+.secret-*.tmp

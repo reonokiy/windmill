@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+set -euo pipefail
+# Translate fnox's Vault environment to OpenBao's native CLI environment.
+export BAO_ADDR="${VAULT_ADDR:?fnox must supply VAULT_ADDR}"
+export BAO_TOKEN="${VAULT_TOKEN:?fnox must supply VAULT_TOKEN}"
+export BAO_NAMESPACE="${VAULT_NAMESPACE:-}"
+
+arguments=("$@")
+for index in "${!arguments[@]}"; do
+  if [[ "${arguments[$index]}" == kv/users/@self/* ]]; then
+    # Only the non-secret entity ID leaves the parser. The lookup response,
+    # which also contains session metadata, is never printed or persisted.
+    entity_id="$(bao token lookup -format=json | bun -e '
+      const value = JSON.parse(await Bun.stdin.text()).data?.entity_id;
+      if (typeof value !== "string" || !/^[a-zA-Z0-9-]+$/.test(value)) {
+        console.error("OpenBao login has no usable entity ID; run mise run bao:login");
+        process.exit(1);
+      }
+      process.stdout.write(value);
+    ')"
+    arguments[index]="kv/users/$entity_id/${arguments[index]#kv/users/@self/}"
+  fi
+done
+exec bao "${arguments[@]}"

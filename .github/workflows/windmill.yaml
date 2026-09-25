@@ -54,7 +54,3 @@ jobs:
         env:
           WM_TOKEN: ${{ secrets.WMILL_TOKEN }}
         run: mise exec -- bun run --bun wmill sync push --yes --auto-metadata --keep-deleted
-      - name: Test B2 on the Windmill worker
-        env:
-          WM_TOKEN: ${{ secrets.WMILL_TOKEN }}
-        run: mise exec -- bun run --bun wmill script run f/storage-test/roundtrip --data '{}'

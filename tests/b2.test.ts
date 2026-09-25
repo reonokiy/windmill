@@ -3,8 +3,8 @@ import { createServer } from "node:http";
 import { once } from "node:events";
 import { test } from "bun:test";
 import { createB2 } from "../f/lib/b2.ts";
-import { createAppStorage } from "../f/lib/app_storage.ts";
-import { testStorage } from "../f/storage-test/roundtrip.ts";
+import { createBlob } from "../f/lib/blob.ts";
+import { verifyBlobRoundtrip } from "./helpers/blob.ts";
 
 test("B2 round trips, content types, exact keys, and S3 errors", async () => {
   const objects = new Map<string, { body: Buffer; type: string | undefined }>();
@@ -58,14 +58,14 @@ test("B2 round trips, content types, exact keys, and S3 errors", async () => {
     await assert.rejects(b2.readText("denied"), { code: "AccessDenied" });
 
     const config = { bucket: "test-bucket", endPoint: `http://127.0.0.1:${address.port}`, region: "test" };
-    const first = createAppStorage("daily-report", config);
-    const second = createAppStorage("feed-sync", config);
-    const smoke = await testStorage(first);
+    const first = await createBlob("daily-report", { backend: "b2", config });
+    const second = await createBlob("feed-sync", { backend: "b2", config });
+    const smoke = await verifyBlobRoundtrip(first);
     assert.equal(smoke.ok, true);
     assert.equal(smoke.cleanedUp, true);
     assert.equal([...objects.keys()].filter(key => key.startsWith("/test-bucket/apps/daily-report/tmp/")).length, 0);
     const cleanupPaths: string[] = [];
-    await assert.rejects(testStorage({
+    await assert.rejects(verifyBlobRoundtrip({
       ...first,
       writeText: async () => { throw new Error("Simulated upload failure"); },
       delete: async path => { cleanupPaths.push(path); },
@@ -86,7 +86,7 @@ test("B2 round trips, content types, exact keys, and S3 errors", async () => {
       assert.throws(() => first.delete(path), /must be relative/);
     }
     for (const app of ["", "lib", "../other", "MyApp", "app_name", "app--name"]) {
-      assert.throws(() => createAppStorage(app, config), /App ID/);
+      await assert.rejects(createBlob(app, { backend: "b2", config }), /App ID/);
     }
   } finally {
     await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()));

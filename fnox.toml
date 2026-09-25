@@ -1,0 +1,14 @@
+root = true
+
+[providers.openbao]
+type = "vault"
+address = "https://bao.nokiy.net"
+# The repository's vault-to-bao adapter resolves @self from the login identity.
+path = "kv/users/@self"
+credential_command = "bao print token"
+auth_command = "mise run bao:login"
+
+[secrets]
+WM_TOKEN = { provider = "openbao", value = "windmill/token", if_missing = "error" }
+WM_WORKSPACE = { default = "windmill" }
+BASE_INTERNAL_URL = { default = "https://windmill.nokiy.net" }

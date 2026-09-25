@@ -1,0 +1,42 @@
+summary: Send US equity quotes and a short opinion to Telegram
+description: Every run sends quotes and a brief Chinese opinion in one Telegram message.
+value:
+  modules:
+    - id: research
+      value:
+        type: script
+        path: f/us-equity-monitor/analyze
+        input_transforms:
+          provider:
+            type: javascript
+            expr: flow_input.provider
+          model:
+            type: javascript
+            expr: flow_input.model
+          symbols:
+            type: javascript
+            expr: flow_input.symbols
+          horizon:
+            type: javascript
+            expr: flow_input.horizon
+      timeout:
+        type: static
+        value: 270
+schema:
+  type: object
+  properties:
+    provider:
+      type: string
+      default: openai-codex
+    model:
+      type: string
+      default: gpt-5.3-codex
+    symbols:
+      type: array
+      items:
+        type: string
+      default: [SPY, QQQ, AAPL, MSFT, NVDA, AMZN, GOOGL, META, TSLA]
+    horizon:
+      type: string
+      default: 未来几天到几周
+  required: []

@@ -2,6 +2,8 @@
 bun = "1.4.2"
 actionlint = "1.7.12"
 shellcheck = "0.11.0"
+fnox = "1.30.0"
+openbao = "2.5.4"
 
 [tasks.install]
 description = "Install locked project dependencies"
@@ -23,14 +25,6 @@ depends = ["check", "test", "lint:ci"]
 description = "Validate GitHub Actions workflows"
 run = "actionlint"
 
-[tasks."b2:local"]
-description = "Read an object locally: mise run b2:local -- read KEY"
-run = "bun run scripts/b2-local.ts"
-
-[tasks."b2:debug"]
-description = "Start Bun debugger: mise run b2:debug -- read KEY"
-run = "bun --inspect-wait run scripts/b2-local.ts"
-
 [tasks."wmill:pull"]
 description = "Pull from the currently selected Windmill workspace"
 run = "bun run --bun wmill sync pull"
@@ -39,6 +33,29 @@ run = "bun run --bun wmill sync pull"
 description = "Preview and push to the currently selected Windmill workspace"
 run = "bun run --bun wmill sync push --auto-metadata --keep-deleted"
 
-[tasks."wmill:test"]
-description = "Run the B2 roundtrip test on the Windmill worker"
-run = "bun run --bun wmill script run f/storage-test/roundtrip --data '{}'"
+[tasks."pi:login"]
+description = "Log in to Codex using pi OAuth; save a gitignored credentials file"
+run = "bun run scripts/pi-login.ts"
+
+[tasks."equity:local"]
+description = "Send equity quotes and a short opinion to Telegram using local env credentials"
+run = "bun run scripts/equity-local.ts"
+
+[tasks."wmill:bao"]
+description = "Run Windmill CLI with WM_TOKEN injected from OpenBao by fnox"
+dir = "{{config_root}}"
+env.BAO_ADDR = "https://bao.nokiy.net"
+run = 'PATH="$PWD/scripts/openbao-bin:$PATH" fnox --no-daemon -c fnox.toml exec -- bun run --bun wmill'
+
+[tasks."bao:login"]
+description = "Log in to OpenBao via Pocket ID without printing the token"
+env.BAO_ADDR = "https://bao.nokiy.net"
+run = "bao login -no-print -method=oidc -path=oidc role=openbao-operator callbackmode=device skip_browser=true show_qr=false"
+
+[tasks."blob:local"]
+description = "Read or roundtrip blobs using automatic local/Windmill configuration"
+run = "bun run scripts/blob-local.ts"
+
+[tasks."blob:debug"]
+description = "Debug the unified blob interface locally"
+run = "bun --inspect-wait run scripts/blob-local.ts"

@@ -1,0 +1,13 @@
+summary: US equity research every five minutes
+schedule: '0 */5 * * * *'
+timezone: America/New_York
+cron_version: v2
+script_path: f/us-equity-monitor/monitor
+is_flow: true
+args:
+  provider: openai-codex
+  model: gpt-5.3-codex
+  symbols: [SPY, QQQ, AAPL, MSFT, NVDA, AMZN, GOOGL, META, TSLA]
+  horizon: 未来几天到几周
+enabled: false
+no_flow_overlap: true

@@ -1,0 +1,6 @@
+summary: Scheduled US equity research with a custom pi agent loop
+display_name: US equity monitor
+owners:
+  - u/reonokiy
+extra_perms:
+  u/reonokiy: true
