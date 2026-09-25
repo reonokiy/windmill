@@ -1,4 +1,5 @@
-// import { Mistral } from "@mistralai/mistralai@2.2.0";
+// @ts-ignore Windmill resolves this pinned transitive dependency for Bun.
+import type { Mistral } from "@mistralai/mistralai@2.2.0";
 import { Agent, type AgentTool, type StreamFn } from "@mariozechner/pi-agent-core";
 import { streamSimple, type Api, type Model } from "@mariozechner/pi-ai";
 import { createMonitorSecrets, type MonitorSecrets } from "./secrets.ts";
