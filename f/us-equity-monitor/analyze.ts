@@ -1,3 +1,6 @@
+// pi-ai lazily registers all built-in providers; its Mistral adapter needs this optional peer.
+// Declare the peer at the script boundary so Windmill includes it in the generated Bun lock.
+import type { Context as TelemetryContext } from "@opentelemetry/api";
 import { Agent, type AgentTool, type StreamFn } from "@mariozechner/pi-agent-core";
 import { streamSimple, type Api, type Model } from "@mariozechner/pi-ai";
 import { createMonitorSecrets, type MonitorSecrets } from "./secrets.ts";
@@ -5,6 +8,8 @@ import { resolveAuth } from "./auth.ts";
 import { systemPrompt, researchPrompt } from "./prompt.ts";
 import { createTools, defaultSymbols, normalizeSymbols } from "./tools.ts";
 import { formatMessage, sendTelegram, validateTelegram } from "./telegram.ts";
+
+type _WindmillPeerLock = TelemetryContext;
 
 export async function runResearch(options: {
   model: Model<Api>; apiKey: string; tools: AgentTool<any>[]; prompt: string;
