@@ -50,14 +50,6 @@ jobs:
             echo '::error::Add the WMILL_TOKEN repository Actions secret, then rerun this workflow.'
             exit 1
           fi
-      - name: Sync workspace dependencies before scripts
-        env:
-          WM_TOKEN: ${{ secrets.WMILL_TOKEN }}
-        run: mise exec -- bun run --bun wmill sync push --yes --includes 'dependencies/**'
-      - name: Generate metadata using workspace dependencies
-        env:
-          WM_TOKEN: ${{ secrets.WMILL_TOKEN }}
-        run: mise exec -- bun run --bun wmill generate-metadata f/us-equity-monitor
       - name: Generate metadata and sync scripts
         env:
           WM_TOKEN: ${{ secrets.WMILL_TOKEN }}
