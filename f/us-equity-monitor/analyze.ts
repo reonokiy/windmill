@@ -1,8 +1,4 @@
-// Pin pi-ai's optional Mistral provider to a release without the optional OpenTelemetry peer.
-if (process.env.WM_JOB_ID) {
-  // @ts-ignore Windmill resolves versioned npm specifiers in Bun scripts.
-  await import("@mistralai/mistralai@2.2.0");
-}
+// package_json: us-equity-monitor
 import { Agent, type AgentTool, type StreamFn } from "@mariozechner/pi-agent-core";
 import { streamSimple, type Api, type Model } from "@mariozechner/pi-ai";
 import { createMonitorSecrets, type MonitorSecrets } from "./secrets.ts";
