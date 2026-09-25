@@ -1,6 +1,4 @@
-// pi-ai lazily bundles built-in providers whose Mistral adapter requires this optional peer.
-// Import it at runtime so Windmill includes it in the generated Bun script lock.
-import "@opentelemetry/api";
+// package_json: us-equity-monitor
 import { Agent, type AgentTool, type StreamFn } from "@mariozechner/pi-agent-core";
 import { streamSimple, type Api, type Model } from "@mariozechner/pi-ai";
 import { createMonitorSecrets, type MonitorSecrets } from "./secrets.ts";

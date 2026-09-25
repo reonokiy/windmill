@@ -2,6 +2,7 @@
 defaultTs: bun
 includes:
   - f/**
+  - dependencies/**
 excludes:
   - '**/.gitkeep'
 skipVariables: true
