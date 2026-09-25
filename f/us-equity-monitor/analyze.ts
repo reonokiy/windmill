@@ -1,6 +1,10 @@
 import { trace } from "@opentelemetry/api";
 // Keep pi-ai's optional Mistral-provider peer in Windmill's script lock.
 void trace;
+if (process.env.WM_JOB_ID) {
+  // @ts-ignore Windmill resolves versioned npm specifiers in Bun scripts.
+  await import("@opentelemetry/api@1.9.0");
+}
 import { Agent, type AgentTool, type StreamFn } from "@mariozechner/pi-agent-core";
 import { streamSimple, type Api, type Model } from "@mariozechner/pi-ai";
 import { createMonitorSecrets, type MonitorSecrets } from "./secrets.ts";
