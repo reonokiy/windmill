@@ -14,8 +14,8 @@
     "windmill-client": "1.810.0"
   },
   "devDependencies": {
-    "typescript": "7.0.2",
     "@types/bun": "1.4.2",
-    "windmill-cli": "1.810.0"
+    "typescript": "7.0.2",
+    "windmill-cli": "1.817.0"
   }
 }
