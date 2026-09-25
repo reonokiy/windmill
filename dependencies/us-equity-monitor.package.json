@@ -3,6 +3,7 @@
     "@mariozechner/pi-agent-core": "0.73.1",
     "@mariozechner/pi-ai": "0.73.1",
     "@mistralai/mistralai": "2.2.0",
+    "@opentelemetry/api": "^1.9.0",
     "typebox": "1.1.24",
     "windmill-client": "1.810.0"
   }
