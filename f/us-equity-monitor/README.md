@@ -3,7 +3,12 @@
 每十分钟由 Windmill 触发 pi agent，按需查询 Finnhub 行情和新闻，生成以最新新闻
 催化、超短线买入观察、卖出/回避条件和风险为重点的中文意见。
 分析置顶，后附个股涨跌幅和报价时间，不展示绝对股价；指数仅作背景。
-不生成报告文件，不读写 B2，也不保留上一轮分析。Windmill 自身仍会记录运行结果。
+不生成报告文件，不读写 B2。通过 Windmill State 保存近 24 小时成功发送的消息，
+每轮对比历史，仅在出现实质变化时通知；完全相同的观点由程序直接去重。
+按群和话题使用固定 State 路径，手动运行和定时运行共享历史。每轮清理过期记录，
+没有变化时不追加消息，发送失败不记为成功；State 读写失败会停止运行。
+Telegram 成功后若 State 保存失败，会明确报错，不自动重试发送。
+首次启用历史为空，之后逐轮积累，不回填旧消息。Windmill 自身仍会记录运行结果。
 默认指数参考：SPY、QQQ。默认个股：NVDA、AMD、AVGO、TSM、ASML、AAPL、MSFT、
 AMZN、GOOGL、META、TSLA。默认周期为日内至下一个交易日。
 
@@ -72,7 +77,9 @@ mise run equity:remote-secrets -- AAPL MSFT
 `mise run equity:local -- --windmill-secrets AAPL MSFT`。两种命令都会实际发送消息。
 
 `f/lib/finnhub.ts` 封装 Finnhub 行情和新闻查询；模型仅在调用工具后获得数据。
-本地与 Windmill 共用 `analyzeAndNotify()`，发送结果返回 messageId 和消息文本。
+本地与 Windmill 共用 `analyzeAndNotify()`，发送结果返回 messageId 和消息文本；
+无变化返回 `skipped: true`。本地运行也需要 Windmill 连接环境变量和 State 读写权限，
+使用同一份远端历史，不回退到本地文件。不要并发手动运行同一话题，以免覆盖历史。
 `mise run verify` 执行类型检查、离线测试和 CI lint，不发送真实消息。
 
 Telegram API 参考：https://core.telegram.org/bots/api#sendmessage

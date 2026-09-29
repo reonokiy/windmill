@@ -4,7 +4,8 @@ import { streamSimple, type Api, type Model } from "@mariozechner/pi-ai";
 import { createMonitorCodex, createMonitorSecrets, type MonitorSecrets } from "./secrets.ts";
 import { resolveAuth } from "./auth.ts";
 import { gatewayProvider } from "../lib/codex.ts";
-import { systemPrompt, researchPrompt, defaultHorizon } from "./prompt.ts";
+import { systemPrompt, researchPrompt, defaultHorizon, noUpdate } from "./prompt.ts";
+import { createHistoryStore, recentHistory, type HistoryStore } from "./history.ts";
 import { createTools, defaultSymbols, normalizeSymbols, referenceSymbols } from "./tools.ts";
 import { formatMessage, sendTelegram, validateTelegram } from "./telegram.ts";
 
@@ -80,14 +81,15 @@ export async function monitorWithSecrets(secrets: MonitorSecrets, options: {
   const resolved = provider === gatewayProvider
     ? await createMonitorCodex(secrets).model({ model, effort: "highest" })
     : await resolveAuth(provider, model, secrets);
-  return analyzeAndNotify({ ...resolved, token, symbols: options.symbols, horizon: options.horizon, botToken, chatId, threadId });
+  return analyzeAndNotify({ ...resolved, token, symbols: options.symbols, horizon: options.horizon, botToken, chatId, threadId,
+    history: createHistoryStore(chatId, threadId) });
 }
 
 /** Shared orchestration for Windmill and local Bun. No report storage. */
 export async function analyzeAndNotify(options: {
   model: Model<Api>; apiKey: string; token: string; botToken: string; chatId: string;
   symbols?: string[]; horizon?: string; streamFn?: StreamFn; http?: typeof fetch;
-  telegramHttp?: typeof fetch; threadId?: number;
+  telegramHttp?: typeof fetch; threadId?: number; history: HistoryStore;
 }) {
   validateTelegram(options.botToken, options.chatId, options.threadId);
   const universe = normalizeSymbols(options.symbols ?? defaultSymbols);
@@ -95,14 +97,25 @@ export async function analyzeAndNotify(options: {
   if (!horizon.trim() || horizon.length > 500) throw new Error("Provide a research horizon of 1–500 characters");
   if (!options.token.trim()) throw new Error("Missing Finnhub API key");
   const startedAt = new Date().toISOString();
+  const history = recentHistory(await options.history.load());
+  // Prune on every run, even if research or delivery fails; also verify write access before sending.
+  await options.history.save(history);
   const { tools, evidence } = createTools(options.token, universe, options.http);
-  const result = await runResearch({ ...options, tools, prompt: researchPrompt(universe, horizon, startedAt) });
+  const result = await runResearch({ ...options, tools, prompt: researchPrompt(universe, horizon, startedAt, history.messages) });
   if (!universe.every(symbol => evidence.some(item => item.kind === "quote" && item.symbol === symbol)) ||
       !universe.filter(symbol => !referenceSymbols.includes(symbol)).every(symbol =>
         evidence.some(item => item.kind === "news" && item.symbol === symbol))) {
     throw new Error("Agent did not obtain all quotes and news; no message sent");
   }
+  if (result.opinion === noUpdate && !history.messages.length) throw new Error("Cannot skip first notification without history");
+  if (result.opinion === noUpdate || history.messages.some(message => message.opinion === result.opinion)) {
+    await options.history.save(recentHistory(history));
+    return { skipped: true, reason: "no_material_change", messageId: null, text: null };
+  }
   const text = formatMessage(universe, evidence, result.opinion, startedAt);
   const messageId = await sendTelegram(options.botToken, options.chatId, text, options.telegramHttp, options.threadId);
-  return { messageId, text };
+  history.messages.push({ sentAt: new Date().toISOString(), messageId, opinion: result.opinion, text });
+  try { await options.history.save(recentHistory(history)); }
+  catch { throw new Error(`Telegram message ${messageId} sent but history save failed; check delivery before retrying`); }
+  return { skipped: false, messageId, text };
 }

@@ -12,5 +12,8 @@ const result = await monitorWithSecrets(secrets, {
   provider: process.env.PI_PROVIDER, model: process.env.PI_MODEL,
   symbols: symbols.length ? symbols : undefined, horizon: process.env.EQUITY_HORIZON,
 });
-console.log(result.text);
-console.log(`\nTelegram message: ${result.messageId}`);
+if (result.skipped) console.log("No material change; Telegram notification skipped.");
+else {
+  console.log(result.text);
+  console.log(`\nTelegram message: ${result.messageId}`);
+}

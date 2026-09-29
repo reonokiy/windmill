@@ -3,6 +3,7 @@ import { createAssistantMessageEventStream, getModel, type AssistantMessage } fr
 import type { StreamFn } from "@mariozechner/pi-agent-core";
 import { analyzeAndNotify, runResearch } from "../f/us-equity-monitor/analyze.ts";
 import { createTools, normalizeSymbols } from "../f/us-equity-monitor/tools.ts";
+import { recentHistory, type MessageHistory } from "../f/us-equity-monitor/history.ts";
 
 const model = getModel("openai-codex", "gpt-5.3-codex");
 function response(content: AssistantMessage["content"], stopReason: AssistantMessage["stopReason"]): AssistantMessage {
@@ -51,8 +52,8 @@ describe("equity research", () => {
       sent.push(body.text);
       return Response.json({ ok: true, result: { message_id: 42 } });
     }) as typeof fetch;
-    const result = await analyzeAndNotify({ model, apiKey: "test", botToken: "123:test", chatId: "123", threadId: 3, token: "test", symbols: ["AAPL"], http, streamFn, telegramHttp });
-    expect(sent).toEqual([result.text]);
+    const result = await analyzeAndNotify({ history: { load: async () => null, save: async () => {} }, model, apiKey: "test", botToken: "123:test", chatId: "123", threadId: 3, token: "test", symbols: ["AAPL"], http, streamFn, telegramHttp });
+    expect(sent).toEqual([result.text!]);
     expect(result.text).toContain("AAPL 涨跌未知");
     expect(result.text).not.toContain("$123.00");
     expect(result.text).toContain("研究完成");
@@ -121,6 +122,48 @@ describe("equity research", () => {
 });
 
 describe("Telegram delivery", () => {
+  test("retains only the past day and rejects corrupt history", () => {
+    const now = Date.parse("2026-09-30T01:00:00Z");
+    const item = { messageId: 1, text: "previous", opinion: "previous" };
+    expect(recentHistory({ version: 1, messages: [
+      { ...item, sentAt: new Date(now - 86400000).toISOString() },
+      { ...item, sentAt: new Date(now - 1000).toISOString() },
+      { ...item, sentAt: new Date(now + 1000).toISOString() },
+    ] }, now).messages).toHaveLength(1);
+    expect(() => recentHistory({ version: 1, messages: [{}] })).toThrow("Invalid");
+  });
+
+  test("history reaches the model; unchanged and failed deliveries never append messages", async () => {
+    let saved: MessageHistory = { version: 1, messages: [{ sentAt: new Date().toISOString(), messageId: 7,
+      opinion: "previous catalyst", text: "previous catalyst and conditions" }] };
+    let sent = 0;
+    const history = { load: async () => structuredClone(saved), save: async (value: MessageHistory) => { saved = structuredClone(value); } };
+    const execute = (opinion: string, fail = false) => {
+      let calls = 0;
+      return analyzeAndNotify({ model, apiKey: "test", token: "test", botToken: "123:test", chatId: "123", symbols: ["AAPL"], history,
+        streamFn: (_model, context) => {
+          expect(JSON.stringify(context.messages)).toContain("previous catalyst and conditions");
+          return ++calls === 1 ? stream(response([
+            { type: "toolCall", id: "q", name: "query_stock", arguments: { kind: "quote", symbol: "AAPL" } },
+            { type: "toolCall", id: "n", name: "query_stock", arguments: { kind: "news", symbol: "AAPL" } },
+          ], "toolUse")) : stream(response([{ type: "text", text: opinion }], "stop"));
+        },
+        http: (async url => Response.json(String(url).includes("company-news") ? [] : { c: 123, t: Date.now() / 1000 })) as typeof fetch,
+        telegramHttp: (async () => { sent++; return fail ? new Response("failure", { status: 500 }) : Response.json({ ok: true, result: { message_id: 8 } }); }) as unknown as typeof fetch,
+      });
+    };
+    expect((await execute("NO_UPDATE")).skipped).toBe(true);
+    expect((await execute("previous catalyst")).skipped).toBe(true);
+    expect(sent).toBe(0);
+    expect(saved.messages).toHaveLength(1);
+    await expect(execute("changed catalyst", true)).rejects.toThrow("HTTP 500");
+    expect(saved.messages).toHaveLength(1);
+    expect((await execute("changed catalyst")).skipped).toBe(false);
+    expect(saved.messages).toHaveLength(2);
+    expect(saved.messages[1].messageId).toBe(8);
+    expect(saved.messages[1].text).toContain("changed catalyst");
+  });
+
   test("requires news queries for every trading stock before sending", async () => {
     let calls = 0;
     let sent = false;
@@ -129,7 +172,7 @@ describe("Telegram delivery", () => {
       { type: "toolCall", id: "q2", name: "query_stock", arguments: { kind: "quote", symbol: "MSFT" } },
       { type: "toolCall", id: "n1", name: "query_stock", arguments: { kind: "news", symbol: "AAPL" } },
     ], "toolUse")) : stream(response([{ type: "text", text: "仅有苹果新闻" }], "stop"));
-    await expect(analyzeAndNotify({ model, apiKey: "test", token: "test", botToken: "123:test", chatId: "123",
+    await expect(analyzeAndNotify({ history: { load: async () => null, save: async () => {} }, model, apiKey: "test", token: "test", botToken: "123:test", chatId: "123",
       symbols: ["AAPL", "MSFT"], streamFn,
       http: (async url => Response.json(String(url).includes("company-news") ? [] : { c: 123, t: Date.now() / 1000 })) as typeof fetch,
       telegramHttp: (async () => { sent = true; return Response.json({ ok: true }); }) as unknown as typeof fetch,
@@ -139,7 +182,7 @@ describe("Telegram delivery", () => {
 
   test("rejects tool-free answers before sending", async () => {
     let sent = false;
-    await expect(analyzeAndNotify({ model, apiKey: "test", token: "test", botToken: "123:test", chatId: "123",
+    await expect(analyzeAndNotify({ history: { load: async () => null, save: async () => {} }, model, apiKey: "test", token: "test", botToken: "123:test", chatId: "123",
       symbols: ["AAPL"], streamFn: () => stream(response([{ type: "text", text: "观望" }], "stop")),
       telegramHttp: (async () => { sent = true; return Response.json({ ok: true }); }) as unknown as typeof fetch,
     })).rejects.toThrow("all quotes and news");
