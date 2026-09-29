@@ -9,7 +9,7 @@ locks:
   f/us-equity-monitor/analyze: 8e94bd2c5c24c647dbbb4de2a8b333a4c46f32406d98ad4f3b39babbd29faad0
   f/us-equity-monitor/auth: 43326d6cbedf7e338cf169224fc4bdcd91a6778409bc05cf6c96038c234edf08
   f/us-equity-monitor/monitor.flow+__flow_hash: 44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a
-  f/us-equity-monitor/prompt: 90b3328b99728d9933600212152815a8a0b3d17fb23664e187835af9c1513a79
+  f/us-equity-monitor/prompt: 699fe95d8c4ef019966db7c10940b2127bca416ffed60c7c46604f58fe6329e7
   f/us-equity-monitor/secrets: 9d339fa692e1f1aebed03134884827331060b3436fb33db5716a47a043940bd7
-  f/us-equity-monitor/telegram: 99c69f23d8f7ad5ba1577fe27dc12e09f5b081014000f1dac4d2bb90fdd428b4
+  f/us-equity-monitor/telegram: 2cae8fd63aa97471a8b86b895b3e2e1a7cf97be6daf70411eeecb883ffade9ff
   f/us-equity-monitor/tools: 01d04c04bf8a486025bbe95ec5fda1ad4146fa2f20559358b8960e017735a94d
