@@ -169,9 +169,12 @@ describe("Telegram delivery", () => {
     const { formatMessage } = await import("../f/us-equity-monitor/telegram.ts");
     const evidence = [{ kind: "quote" as const, symbol: "AAPL", source: "test", retrievedAt: "now", valid: true,
       stale: true, data: { price: 123, changePercent: -1.2, quoteTimestamp: 1 } }];
-    const text = formatMessage(["SPY", "AAPL", "MSFT"], evidence, "数据不足，暂时观望", "now");
+    const text = formatMessage(["SPY", "AAPL", "MSFT"], evidence, "数据不足，暂时观望", "2026-09-29T20:30:00.000Z");
     expect(text).toContain("-1.20%");
-    expect(text).toContain("1970-01-01");
+    expect(text).toContain("1970-01-01 08:00:01");
+    expect(text).toContain("2026-09-30 04:30:00（UTC+8）");
+    expect(text).not.toContain("Finnhub");
+    expect(text).not.toContain("来源：");
     expect(text).toContain("[过期]");
     expect(text).toContain("MSFT：行情无效");
     expect(text).not.toContain("$123");

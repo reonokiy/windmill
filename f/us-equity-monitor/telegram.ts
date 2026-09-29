@@ -9,6 +9,11 @@ export function validateTelegram(botToken: string, chatId: string, threadId?: nu
   }
 }
 
+function displayTime(value: string | number) {
+  return new Date(new Date(value).getTime() + 8 * 60 * 60 * 1000)
+    .toISOString().replace("T", " ").replace(".000Z", "").replace(/\.\d{3}Z$/, "");
+}
+
 export function formatMessage(symbols: string[], evidence: StockInformation[], opinion: string, now: string) {
   // Do not truncate away a risk or condition from an unexpectedly long answer.
   if (!opinion.trim() || opinion.length > 1000) throw new Error("Opinion must be 1–1000 characters; no message sent");
@@ -19,14 +24,14 @@ export function formatMessage(symbols: string[], evidence: StockInformation[], o
     const quote = item.data as { changePercent?: number; quoteTimestamp: number };
     const change = typeof quote.changePercent === "number" && Number.isFinite(quote.changePercent)
       ? `${quote.changePercent >= 0 ? "+" : ""}${quote.changePercent.toFixed(2)}%` : "涨跌未知";
-    const timestamp = new Date(quote.quoteTimestamp * 1000).toISOString().replace("T", " ").replace(".000Z", "Z");
+    const timestamp = displayTime(quote.quoteTimestamp * 1000);
     return `${symbol} ${change} · ${timestamp}${item.stale ? " [过期]" : ""}`;
   });
   const status = latest.find(item => item.kind === "market_status")?.data as { session?: unknown } | undefined;
   const session = typeof status?.session === "string" ? status.session.slice(0, 40) : "未知";
   const indexes = lines.filter((_, i) => referenceSymbols.includes(symbols[i]));
   const stocks = lines.filter((_, i) => !referenceSymbols.includes(symbols[i]));
-  const text = `科技/芯片超短线 · ${now}\n市场：${session}\n\n${opinion.trim()}\n\n个股涨跌幅（较昨收）：\n${stocks.join("\n")}${indexes.length ? `\n\n指数参考（非交易标的）：\n${indexes.join("\n")}` : ""}\n\n来源：Finnhub；报价时间为 UTC。快照不代表分钟级趋势。`;
+  const text = `科技/芯片超短线 · ${displayTime(now)}（UTC+8）\n市场：${session}\n\n${opinion.trim()}\n\n个股涨跌幅（较昨收）：\n${stocks.join("\n")}${indexes.length ? `\n\n指数参考（非交易标的）：\n${indexes.join("\n")}` : ""}`;
   if (text.length > 4096) throw new Error("Telegram message too long; no message sent");
   return text;
 }
