@@ -61,3 +61,31 @@ test("missing, unknown and malformed secrets fail without leaking values", async
   await expect(secrets.get("unbound" as "key")).rejects.toThrow("Unknown secret");
   await expect(secrets.getJson("auth")).rejects.toEqual(new Error("Secret is not valid JSON: auth"));
 });
+
+test("explicit remote reads use their own connection, never write or fall back locally", async () => {
+  const requests: string[] = [];
+  let fail = false;
+  const server = Bun.serve({ port: 0, hostname: "127.0.0.1", fetch(request) {
+    requests.push(request.method);
+    expect(new URL(request.url).pathname).toBe("/api/w/test/variables/get/u/test/key");
+    expect(new URL(request.url).searchParams.get("decrypt_secret")).toBe("true");
+    expect(request.headers.get("Authorization")).toBe("Bearer synthetic-token");
+    return fail ? new Response("private response body", { status: 403 }) : Response.json({ value: "remote-value" });
+  } });
+  const env = Object.freeze({ BASE_INTERNAL_URL: server.url.toString(), WM_WORKSPACE: "test",
+    WM_TOKEN: "synthetic-token", API_KEY: "must-not-fallback" });
+  const secrets = createSecrets(bindings, { backend: "windmill-readonly", env });
+  try {
+    expect(secrets.writable).toBe(false);
+    expect(await secrets.get("key")).toBe("remote-value");
+    await expect(secrets.set("key", "new-value")).rejects.toThrow("read-only");
+    await expect(secrets.setJson("key", { changed: true })).rejects.toThrow("read-only");
+    expect(requests).toEqual(["GET"]);
+    fail = true;
+    await expect(secrets.get("key")).rejects.toEqual(new Error("Could not read secret: key (windmill-readonly)"));
+    expect(env.API_KEY).toBe("must-not-fallback");
+    const unconfigured = createSecrets(bindings, { backend: "windmill-readonly", env: { API_KEY: "must-not-fallback" } });
+    await expect(unconfigured.get("key")).rejects.toThrow("Could not read secret");
+    expect(requests).toEqual(["GET", "GET"]);
+  } finally { server.stop(true); }
+});

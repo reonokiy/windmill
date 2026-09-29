@@ -1,3 +1,4 @@
+// package_json: us-equity-monitor
 import { getModels, getProviders, type KnownProvider, type Model, type Api } from "@mariozechner/pi-ai";
 import { getOAuthApiKey, getOAuthProvider, type OAuthCredentials } from "@mariozechner/pi-ai/oauth";
 import type { SecretStore } from "../lib/secrets.ts";

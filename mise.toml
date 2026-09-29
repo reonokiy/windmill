@@ -41,6 +41,12 @@ run = "bun run scripts/pi-login.ts"
 description = "Send equity quotes and a short opinion to Telegram using local env credentials"
 run = "bun run scripts/equity-local.ts"
 
+[tasks."equity:remote-secrets"]
+description = "Run locally with read-only Windmill secrets and OpenBao-injected authentication"
+dir = "{{config_root}}"
+env.BAO_ADDR = "https://bao.nokiy.net"
+run = 'PATH="$PWD/scripts/openbao-bin:$PATH" fnox --no-daemon -c fnox.toml exec -- bun run scripts/equity-local.ts --windmill-secrets'
+
 [tasks."wmill:bao"]
 description = "Run Windmill CLI with WM_TOKEN injected from OpenBao by fnox"
 dir = "{{config_root}}"

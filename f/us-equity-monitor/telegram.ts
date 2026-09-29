@@ -1,8 +1,11 @@
 import type { StockInformation } from "../lib/finnhub.ts";
 
-export function validateTelegram(botToken: string, chatId: string) {
+export function validateTelegram(botToken: string, chatId: string, threadId?: number) {
   if (!/^\d+:[A-Za-z0-9_-]+$/.test(botToken)) throw new Error("Missing or invalid Telegram bot token");
   if (!chatId.trim()) throw new Error("Missing Telegram chat ID");
+  if (threadId !== undefined && (!Number.isSafeInteger(threadId) || threadId <= 0)) {
+    throw new Error("Invalid Telegram topic ID");
+  }
 }
 
 export function formatMessage(symbols: string[], evidence: StockInformation[], opinion: string, now: string) {
@@ -26,14 +29,14 @@ export function formatMessage(symbols: string[], evidence: StockInformation[], o
 }
 
 /** Plain text avoids model-generated Markdown parse failures. Never log token-bearing URLs. */
-export async function sendTelegram(botToken: string, chatId: string, text: string, http: typeof fetch = fetch) {
-  validateTelegram(botToken, chatId);
+export async function sendTelegram(botToken: string, chatId: string, text: string, http: typeof fetch = fetch, threadId?: number) {
+  validateTelegram(botToken, chatId, threadId);
   if (!text.trim() || text.length > 4096) throw new Error("Invalid Telegram message length");
   let response: Response;
   try {
     response = await http(`https://api.telegram.org/bot${botToken}/sendMessage`, {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ chat_id: chatId, text, link_preview_options: { is_disabled: true } }),
+      body: JSON.stringify({ chat_id: chatId, message_thread_id: threadId, text, link_preview_options: { is_disabled: true } }),
       signal: AbortSignal.timeout(15_000), redirect: "error",
     });
   } catch { throw new Error("Telegram request failed or timed out; delivery unknown, check chat before retrying"); }

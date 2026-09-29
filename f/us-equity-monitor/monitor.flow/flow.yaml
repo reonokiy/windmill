@@ -5,38 +5,47 @@ value:
     - id: research
       value:
         type: script
-        path: f/us-equity-monitor/analyze
         input_transforms:
-          provider:
-            type: javascript
-            expr: flow_input.provider
-          model:
-            type: javascript
-            expr: flow_input.model
-          symbols:
-            type: javascript
-            expr: flow_input.symbols
           horizon:
             type: javascript
             expr: flow_input.horizon
+          model:
+            type: javascript
+            expr: flow_input.model
+          provider:
+            type: javascript
+            expr: flow_input.provider
+          symbols:
+            type: javascript
+            expr: flow_input.symbols
+        path: f/us-equity-monitor/analyze
       timeout:
         type: static
-        value: 270
+        value: 660
 schema:
   type: object
   properties:
-    provider:
-      type: string
-      default: openai-codex
-    model:
-      type: string
-      default: gpt-5.3-codex
-    symbols:
-      type: array
-      items:
-        type: string
-      default: [SPY, QQQ, AAPL, MSFT, NVDA, AMZN, GOOGL, META, TSLA]
     horizon:
       type: string
       default: 未来几天到几周
+    model:
+      type: string
+      default: gpt-6-luna
+    provider:
+      type: string
+      default: codex-gateway
+    symbols:
+      type: array
+      default:
+        - SPY
+        - QQQ
+        - AAPL
+        - MSFT
+        - NVDA
+        - AMZN
+        - GOOGL
+        - META
+        - TSLA
+      items:
+        type: string
   required: []

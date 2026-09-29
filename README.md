@@ -104,6 +104,19 @@ The local backend is read-only: `set` / `setJson` throw without changing the pro
 environment or any file. Setting local CLI credentials such as `WM_TOKEN` does not
 select the Windmill backend.
 
+For explicit local remote reads, pass `{ backend: "windmill-readonly" }` as the
+second argument to `createSecrets`. Supply `WM_TOKEN`, `WM_WORKSPACE`, and
+`BASE_INTERNAL_URL` through the existing OpenBao/fnox configuration. This mode
+uses the mapped Windmill paths, keeps values in memory, and rejects both `set`
+and `setJson`. It never changes environment variables, writes credential files,
+or falls back to local values on failure. It does not set `WM_JOB_ID` or grant
+cluster-internal network access.
+
+For the equity app, `mise run equity:remote-secrets -- AAPL MSFT` injects the
+Windmill credentials through OpenBao and runs locally with this read-only mode.
+It sends a real Telegram message. The public model gateway still requires
+`CODEX_API_KEY` in local env; Finnhub and Telegram credentials come from Windmill.
+
 Inside Windmill jobs, secrets read and update the mapped secret variables; writes always
 set `isSecret: true`. `secrets.writable` indicates whether updates are supported.
 OAuth can refresh and persist credentials remotely. Local debugging uses a valid access

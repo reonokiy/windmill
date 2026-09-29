@@ -46,11 +46,12 @@ describe("equity research", () => {
     const telegramHttp = (async (_url, init) => {
       const body = JSON.parse(String(init?.body));
       expect(body.chat_id).toBe("123");
+      expect(body.message_thread_id).toBe(3);
       expect(body.parse_mode).toBeUndefined();
       sent.push(body.text);
       return Response.json({ ok: true, result: { message_id: 42 } });
     }) as typeof fetch;
-    const result = await analyzeAndNotify({ model, apiKey: "test", botToken: "123:test", chatId: "123", token: "test", symbols: ["AAPL"], http, streamFn, telegramHttp });
+    const result = await analyzeAndNotify({ model, apiKey: "test", botToken: "123:test", chatId: "123", threadId: 3, token: "test", symbols: ["AAPL"], http, streamFn, telegramHttp });
     expect(sent).toEqual([result.text]);
     expect(result.text).toContain("AAPL $123.00");
     expect(result.text).toContain("研究完成");
@@ -131,6 +132,12 @@ describe("Telegram delivery", () => {
   test("Telegram failures are sanitized and not retried", async () => {
     const { sendTelegram } = await import("../f/us-equity-monitor/telegram.ts");
     let calls = 0;
+    for (const threadId of [0, -1, NaN, 1.5]) {
+      await expect(sendTelegram("123:private", "123", "观望", (async () => {
+        calls++; throw new Error("must not send");
+      }) as unknown as typeof fetch, threadId)).rejects.toThrow("Invalid Telegram topic ID");
+    }
+    expect(calls).toBe(0);
     await expect(sendTelegram("123:private", "123", "观望", (async () => {
       calls++; throw new Error("https://api.telegram.org/bot123:private/sendMessage");
     }) as unknown as typeof fetch)).rejects.toThrow("delivery unknown");
