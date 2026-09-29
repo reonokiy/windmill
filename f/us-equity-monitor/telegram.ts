@@ -1,4 +1,5 @@
 import type { StockInformation } from "../lib/finnhub.ts";
+import { referenceSymbols } from "./tools.ts";
 
 export function validateTelegram(botToken: string, chatId: string, threadId?: number) {
   if (!/^\d+:[A-Za-z0-9_-]+$/.test(botToken)) throw new Error("Missing or invalid Telegram bot token");
@@ -15,15 +16,17 @@ export function formatMessage(symbols: string[], evidence: StockInformation[], o
   const lines = symbols.map(symbol => {
     const item = latest.find(item => item.kind === "quote" && item.symbol === symbol);
     if (!item?.valid) return `${symbol}：行情无效`;
-    const quote = item.data as { price: number; changePercent?: number; quoteTimestamp: number };
+    const quote = item.data as { changePercent?: number; quoteTimestamp: number };
     const change = typeof quote.changePercent === "number" && Number.isFinite(quote.changePercent)
       ? `${quote.changePercent >= 0 ? "+" : ""}${quote.changePercent.toFixed(2)}%` : "涨跌未知";
     const timestamp = new Date(quote.quoteTimestamp * 1000).toISOString().replace("T", " ").replace(".000Z", "Z");
-    return `${symbol} $${quote.price.toFixed(2)} ${change} · ${timestamp}${item.stale ? " [过期]" : ""}`;
+    return `${symbol} ${change} · ${timestamp}${item.stale ? " [过期]" : ""}`;
   });
   const status = latest.find(item => item.kind === "market_status")?.data as { session?: unknown } | undefined;
   const session = typeof status?.session === "string" ? status.session.slice(0, 40) : "未知";
-  const text = `美股行情 · ${now}\n市场：${session}\n${lines.join("\n")}\n\n简短意见：${opinion.trim()}\n\n行情来源：Finnhub；时间为 UTC 报价时间，实时性以数据源为准。`;
+  const indexes = lines.filter((_, i) => referenceSymbols.includes(symbols[i]));
+  const stocks = lines.filter((_, i) => !referenceSymbols.includes(symbols[i]));
+  const text = `科技/芯片超短线 · ${now}\n市场：${session}\n\n${opinion.trim()}\n\n个股涨跌幅（较昨收）：\n${stocks.join("\n")}${indexes.length ? `\n\n指数参考（非交易标的）：\n${indexes.join("\n")}` : ""}\n\n来源：Finnhub；报价时间为 UTC。快照不代表分钟级趋势。`;
   if (text.length > 4096) throw new Error("Telegram message too long; no message sent");
   return text;
 }

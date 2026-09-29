@@ -2,7 +2,8 @@ import type { AgentTool } from "@mariozechner/pi-agent-core";
 import { Type } from "typebox";
 import { createStockQuery, parseStockQuery, type StockInformation } from "../lib/finnhub.ts";
 
-export const defaultSymbols = ["SPY", "QQQ", "AAPL", "MSFT", "NVDA", "AMZN", "GOOGL", "META", "TSLA"];
+export const referenceSymbols = ["SPY", "QQQ"];
+export const defaultSymbols = [...referenceSymbols, "NVDA", "AMD", "AVGO", "TSM", "ASML", "AAPL", "MSFT", "AMZN", "GOOGL", "META", "TSLA"];
 
 export function normalizeSymbols(symbols: string[]) {
   const normalized = [...new Set(symbols.map(symbol => symbol.trim().toUpperCase()))];

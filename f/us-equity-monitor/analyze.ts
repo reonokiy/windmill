@@ -4,8 +4,8 @@ import { streamSimple, type Api, type Model } from "@mariozechner/pi-ai";
 import { createMonitorCodex, createMonitorSecrets, type MonitorSecrets } from "./secrets.ts";
 import { resolveAuth } from "./auth.ts";
 import { gatewayProvider } from "../lib/codex.ts";
-import { systemPrompt, researchPrompt } from "./prompt.ts";
-import { createTools, defaultSymbols, normalizeSymbols } from "./tools.ts";
+import { systemPrompt, researchPrompt, defaultHorizon } from "./prompt.ts";
+import { createTools, defaultSymbols, normalizeSymbols, referenceSymbols } from "./tools.ts";
 import { formatMessage, sendTelegram, validateTelegram } from "./telegram.ts";
 
 const defaultModel = "gpt-6-luna";
@@ -53,7 +53,7 @@ export async function main(
   auth_secret: string = "u/reonokiy/us_equity_pi_auth",
   market_data_secret: string = "u/reonokiy/us_equity_finnhub_key",
   symbols: string[] = defaultSymbols,
-  horizon: string = "未来几天到几周",
+  horizon: string = defaultHorizon,
   telegram_bot_secret: string = "u/reonokiy/us_equity_telegram_bot_token",
   telegram_chat_secret: string = "u/reonokiy/us_equity_telegram_chat_id",
   gateway_key_secret: string = "u/reonokiy/us_equity_gateway_key",
@@ -91,14 +91,15 @@ export async function analyzeAndNotify(options: {
 }) {
   validateTelegram(options.botToken, options.chatId, options.threadId);
   const universe = normalizeSymbols(options.symbols ?? defaultSymbols);
-  const horizon = options.horizon ?? "未来几天到几周";
+  const horizon = options.horizon ?? defaultHorizon;
   if (!horizon.trim() || horizon.length > 500) throw new Error("Provide a research horizon of 1–500 characters");
   if (!options.token.trim()) throw new Error("Missing Finnhub API key");
   const startedAt = new Date().toISOString();
   const { tools, evidence } = createTools(options.token, universe, options.http);
   const result = await runResearch({ ...options, tools, prompt: researchPrompt(universe, horizon, startedAt) });
   if (!universe.every(symbol => evidence.some(item => item.kind === "quote" && item.symbol === symbol)) ||
-      !evidence.some(item => item.kind === "news")) {
+      !universe.filter(symbol => !referenceSymbols.includes(symbol)).every(symbol =>
+        evidence.some(item => item.kind === "news" && item.symbol === symbol))) {
     throw new Error("Agent did not obtain all quotes and news; no message sent");
   }
   const text = formatMessage(universe, evidence, result.opinion, startedAt);

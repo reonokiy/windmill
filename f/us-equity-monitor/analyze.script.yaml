@@ -19,7 +19,7 @@ schema:
     horizon:
       type: string
       description: ''
-      default: 未来几天到几周
+      default: null
       originalType: string
     market_data_secret:
       type: string

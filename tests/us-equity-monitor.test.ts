@@ -53,7 +53,8 @@ describe("equity research", () => {
     }) as typeof fetch;
     const result = await analyzeAndNotify({ model, apiKey: "test", botToken: "123:test", chatId: "123", threadId: 3, token: "test", symbols: ["AAPL"], http, streamFn, telegramHttp });
     expect(sent).toEqual([result.text]);
-    expect(result.text).toContain("AAPL $123.00");
+    expect(result.text).toContain("AAPL 涨跌未知");
+    expect(result.text).not.toContain("$123.00");
     expect(result.text).toContain("研究完成");
     expect(result.messageId).toBe(42);
   });
@@ -120,6 +121,22 @@ describe("equity research", () => {
 });
 
 describe("Telegram delivery", () => {
+  test("requires news queries for every trading stock before sending", async () => {
+    let calls = 0;
+    let sent = false;
+    const streamFn: StreamFn = () => ++calls === 1 ? stream(response([
+      { type: "toolCall", id: "q1", name: "query_stock", arguments: { kind: "quote", symbol: "AAPL" } },
+      { type: "toolCall", id: "q2", name: "query_stock", arguments: { kind: "quote", symbol: "MSFT" } },
+      { type: "toolCall", id: "n1", name: "query_stock", arguments: { kind: "news", symbol: "AAPL" } },
+    ], "toolUse")) : stream(response([{ type: "text", text: "仅有苹果新闻" }], "stop"));
+    await expect(analyzeAndNotify({ model, apiKey: "test", token: "test", botToken: "123:test", chatId: "123",
+      symbols: ["AAPL", "MSFT"], streamFn,
+      http: (async url => Response.json(String(url).includes("company-news") ? [] : { c: 123, t: Date.now() / 1000 })) as typeof fetch,
+      telegramHttp: (async () => { sent = true; return Response.json({ ok: true }); }) as unknown as typeof fetch,
+    })).rejects.toThrow("all quotes and news");
+    expect(sent).toBe(false);
+  });
+
   test("rejects tool-free answers before sending", async () => {
     let sent = false;
     await expect(analyzeAndNotify({ model, apiKey: "test", token: "test", botToken: "123:test", chatId: "123",
@@ -152,11 +169,14 @@ describe("Telegram delivery", () => {
     const { formatMessage } = await import("../f/us-equity-monitor/telegram.ts");
     const evidence = [{ kind: "quote" as const, symbol: "AAPL", source: "test", retrievedAt: "now", valid: true,
       stale: true, data: { price: 123, changePercent: -1.2, quoteTimestamp: 1 } }];
-    const text = formatMessage(["AAPL", "MSFT"], evidence, "数据不足，暂时观望", "now");
+    const text = formatMessage(["SPY", "AAPL", "MSFT"], evidence, "数据不足，暂时观望", "now");
     expect(text).toContain("-1.20%");
     expect(text).toContain("1970-01-01");
     expect(text).toContain("[过期]");
     expect(text).toContain("MSFT：行情无效");
+    expect(text).not.toContain("$123");
+    expect(text).toContain("指数参考（非交易标的）：\nSPY：行情无效");
+    expect(text.indexOf("数据不足")).toBeLessThan(text.indexOf("个股涨跌幅"));
     expect(() => formatMessage(["AAPL"], evidence, "长".repeat(1001), "now")).toThrow("1000");
   });
 });

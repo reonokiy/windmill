@@ -27,7 +27,7 @@ schema:
   properties:
     horizon:
       type: string
-      default: 未来几天到几周
+      default: 日内至下一个交易日，超短线
     model:
       type: string
       default: gpt-6-luna
@@ -39,9 +39,13 @@ schema:
       default:
         - SPY
         - QQQ
+        - NVDA
+        - AMD
+        - AVGO
+        - TSM
+        - ASML
         - AAPL
         - MSFT
-        - NVDA
         - AMZN
         - GOOGL
         - META

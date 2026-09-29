@@ -1,5 +1,5 @@
-summary: US equity research every five minutes
-schedule: '0 */5 * * * *'
+summary: US equity research every ten minutes
+schedule: '0 */10 * * * *'
 timezone: America/New_York
 cron_version: v2
 script_path: f/us-equity-monitor/monitor
@@ -7,7 +7,7 @@ is_flow: true
 args:
   provider: codex-gateway
   model: gpt-6-luna
-  symbols: [SPY, QQQ, AAPL, MSFT, NVDA, AMZN, GOOGL, META, TSLA]
-  horizon: 未来几天到几周
-enabled: false
+  symbols: [SPY, QQQ, NVDA, AMD, AVGO, TSM, ASML, AAPL, MSFT, AMZN, GOOGL, META, TSLA]
+  horizon: 日内至下一个交易日，超短线
+enabled: true
 no_flow_overlap: true
